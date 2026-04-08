@@ -24,7 +24,7 @@ Route::get('/api/kategori/{id}/huruf/{huruf}', [FrontController::class, 'getWord
 Route::get('/api/kata/{id}/toggle', [FrontController::class, 'toggleStatus']);
 
 // Route Halaman Admin
-Route::prefix('admin')->name('admin')->group(function(){
+Route::prefix('admin')->name('admin.')->group(function(){
     Route::get('/', [AdminController::class, 'index'])->name('index');
 
     // CRUD kategori
