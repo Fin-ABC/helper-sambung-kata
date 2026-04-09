@@ -75,14 +75,7 @@
                     this.sortWords(); // Urutkan ulang agar yang dicoret pindah ke bawah
 
                     // 2. Kirim update ke database di latar belakang
-                    await fetch(`/api/kata/${word.id}/toggle`, {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json'
-                        }
-                    });
+                    await fetch(`/api/kata/${word.id}/toggle`);
                 },
 
                 sortWords() {
