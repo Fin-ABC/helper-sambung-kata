@@ -19,7 +19,28 @@ class FrontController extends Controller
     public function show($id)
     {
         $kategori = Kategori::findOrFail($id);
-        return view('front.play', compact('kategori'));
+
+        // QUERY SUPER RINGAN: Menghitung total kata dan kata terpakai per huruf
+        $statsRaw = Kata::selectRaw('huruf_awal, COUNT(id) as total, SUM(is_used) as terpakai')
+                        ->where('kategori_id', $id)
+                        ->groupBy('huruf_awal')
+                        ->get();
+
+        // Siapkan wadah abjad A-Z bawaan
+        $letterStats = [];
+        foreach(range('A', 'Z') as $huruf) {
+            $letterStats[$huruf] = ['total' => 0, 'terpakai' => 0];
+        }
+
+        // Isi wadah dengan hasil dari database
+        foreach($statsRaw as $stat) {
+            $letterStats[$stat->huruf_awal] = [
+                'total' => (int) $stat->total,
+                'terpakai' => (int) $stat->terpakai
+            ];
+        }
+
+        return view('front.play', compact('kategori', 'letterStats'));
     }
 
     // Mengambil kata berdasarkan huruf yang diklik (Untuk Alpine.js)
