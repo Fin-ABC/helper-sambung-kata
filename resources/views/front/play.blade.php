@@ -2,7 +2,7 @@
 
 @section('content')
     <!-- Inisialisasi state Alpine.js -->
-    <div x-data="wordGame('{{ $kategori->id }}')">
+    <div x-data="wordGame('{{ $kategori->id }}', {{ json_encode($letterStats) }})">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h4>Kategori: {{ $kategori->nama }}</h4>
 
@@ -16,13 +16,21 @@
             <!-- Sidebar Tombol Abjad A-Z -->
             <div class="col-md-2 col-3">
                 <div class="d-grid gap-1">
-                    @foreach (range('A', 'Z') as $huruf)
-                        <button @click="fetchWords('{{ $huruf }}')"
-                            :class="activeLetter === '{{ $huruf }}' ? 'btn-primary' : 'btn-outline-primary'"
-                            class="btn btn-sm fw-bold">
-                            {{ $huruf }}
-                        </button>
-                    @endforeach
+                    <template x-for="huruf in Object.keys(letterStats)" :key="huruf">
+                    <button 
+                        @click="fetchWords(huruf)" 
+                        :class="activeLetter === huruf ? 'btn-primary' : 'btn-outline-primary'"
+                        class="btn btn-sm text-start d-flex justify-content-between align-items-center">
+                        
+                        <span class="fw-bold" x-text="huruf"></span>
+                        
+                        <span>
+                            <span x-show="letterStats[huruf].total === 0" title="Kosong">🚫</span>
+                            <span x-show="letterStats[huruf].total > 0 && letterStats[huruf].total === letterStats[huruf].terpakai" title="Habis Dipakai">✅</span>
+                        </span>
+
+                    </button>
+                </template>
                 </div>
             </div>
 
@@ -56,39 +64,45 @@
 
     <!-- Script Logika Alpine.js -->
     <script>
-        document.addEventListener('alpine:init', () => {
-            Alpine.data('wordGame', (kategoriId) => ({
-                words: [],
-                activeLetter: '',
-                isGrid: false, // Default: mode List vertikal
-
-                async fetchWords(letter) {
-                    this.activeLetter = letter;
-                    // Ambil data JSON dari backend
-                    const response = await fetch(`/api/kategori/${kategoriId}/huruf/${letter}`);
-                    this.words = await response.json();
-                },
-
-                async toggleWord(word) {
-                    // 1. Ubah UI secara instan (optimistic update)
-                    word.is_used = word.is_used ? 0 : 1;
-                    this.sortWords(); // Urutkan ulang agar yang dicoret pindah ke bawah
-
-                    // 2. Kirim update ke database di latar belakang
-                    await fetch(`/api/kata/${word.id}/toggle`);
-                },
-
-                sortWords() {
-                    // Logika pengurutan: yang is_used=0 di atas, is_used=1 di bawah.
-                    // Jika sama statusnya, urutkan sesuai abjad.
-                    this.words.sort((a, b) => {
-                        if (a.is_used === b.is_used) {
-                            return a.nama_kata.localeCompare(b.nama_kata);
-                        }
-                        return a.is_used ? 1 : -1;
-                    });
+    document.addEventListener('alpine:init', () => {
+        // Terima letterStats dari Laravel
+        Alpine.data('wordGame', (kategoriId, initialStats) => ({
+            words: [],
+            activeLetter: '',
+            isGrid: false, 
+            letterStats: initialStats, // Simpan status abjad di sini
+            
+            async fetchWords(letter) {
+                this.activeLetter = letter;
+                const response = await fetch(`/api/kategori/${kategoriId}/huruf/${letter}`);
+                this.words = await response.json();
+            },
+            
+            async toggleWord(word) {
+                // 1. Ubah Status UI dan Statistik Abjad secara instan
+                if (word.is_used) {
+                    word.is_used = 0; // Batal dicoret
+                    this.letterStats[this.activeLetter].terpakai--; // Kurangi jumlah terpakai
+                } else {
+                    word.is_used = 1; // Dicoret
+                    this.letterStats[this.activeLetter].terpakai++; // Tambah jumlah terpakai
                 }
-            }))
-        })
-    </script>
+                
+                this.sortWords(); 
+                
+                // 2. Kirim update ke database di latar belakang
+                await fetch(`/api/kata/${word.id}/toggle`);
+            },
+            
+            sortWords() {
+                this.words.sort((a, b) => {
+                    if (a.is_used === b.is_used) {
+                        return a.nama_kata.localeCompare(b.nama_kata);
+                    }
+                    return a.is_used ? 1 : -1;
+                });
+            }
+        }))
+    })
+</script>
 @endsection
